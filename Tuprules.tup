@@ -1,0 +1,6 @@
+CFLAGS += -Wall -O0
+LDFLAGS += 
+
+!cc = |> ^ CC %f^gcc $(CFLAGS) -c %f -o %o |> %B.o
+!link = |> ^ LINK %o^ gcc %f -o %o $(LDFLAGS) |>
+!cp = |> ^ CP %f -> %o^ cp %f %o |>
