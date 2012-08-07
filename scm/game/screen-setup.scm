@@ -1,7 +1,6 @@
-(define-module 
-  (screen setup)
-  #:export (setup
-            destroy))
+(define-module (game screen-setup)
+               #:export (setup
+                         destroy))
 
 (use-modules (ncurses curses)
              (util debug))
@@ -14,7 +13,6 @@
                  (raw!)
                  (keypad! stdscr #t)
                  (noecho!)
-                 (start-color!)
-                 (debug "color-pairs ~a\ncolors ~a\n" (color-pairs) (colors))
                  stdscr))
-  (set! destroy (λ () (endwin))))
+  (set! destroy (λ ()
+                   (endwin))))

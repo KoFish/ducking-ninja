@@ -3,9 +3,10 @@
 
 (use-modules (ncurses curses)
              (util reader)
+             (util colors)
              (util debug))
 
-(define welcome-message "Lets start this up")
+(define welcome-message (color-string "Lets start this up"))
 (define i 0)
 
 (define (draw scr)
@@ -17,7 +18,8 @@
       (catch 'window-resize
         (λ ()
            (erase scr)
-           (addstr scr welcome-message #:x (- (floor/ mx 2) (floor/ (string-length welcome-message) 2)) #:y (floor/ my 2)) 
+           (addchstr scr welcome-message #:x (- (floor/ mx 2) (floor/ (length welcome-message) 2)) #:y (floor/ my 2)) 
+           (move scr 1 0)
            (get-char scr)
            (drop-async as))
         (λ (key . args)

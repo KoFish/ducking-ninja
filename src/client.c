@@ -21,7 +21,7 @@ SCM run_with_screen(void *_screen) {
 SCM terminate_with_screen(void *data, SCM key, SCM args) {
     char *key_str;
     DBG("Setup screen\n");
-    SCM_CALL("screen setup", "destroy");
+    SCM_CALL("game screen-setup", "destroy");
     key_str = scm_to_locale_string(scm_symbol_to_string(key));
     if (strncmp(key_str, "game-done", 9) == 0) {
         char *msg = scm_to_locale_string(scm_car(args));
@@ -42,9 +42,9 @@ void *guile_run(void *arg) {
     scm_add_to_load_path("./scm/");
     SCM_LOAD("initialize.scm");
 
-    scm_c_use_module("screen setup");
+    scm_c_use_module("game screen-setup");
 
-    screen = SCM_CALL("screen setup", "setup");
+    screen = SCM_CALL("game screen-setup", "setup");
 
     scm_internal_catch(SCM_BOOL_T, run_with_screen, (void *)screen, terminate_with_screen, NULL);
 
