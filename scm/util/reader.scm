@@ -42,11 +42,15 @@
             (run-async (λ (async)
                           (let ((sym (caar async))
                                 (async-thunk (cdr async)))
-                            (if (apply (get-thunk async-thunk) '())
-                                (cons (cons sym (+ time (get-timeout async-thunk))) async-thunk) 
-                                #f)))))
-        (fluid-set! %async-thunks 
-        (append thunks (filter p? (map run-async expired)))))))) 
+                            (catch #t 
+                              (λ ()
+                                 (if (apply (get-thunk async-thunk) '())
+                                     (cons (cons sym (+ time (get-timeout async-thunk))) async-thunk) 
+                                     #f))
+                              (λ (key . args)
+                                 (debug "Couldn't run async handler ~a\n" sym)
+                                 #f))))))
+        (fluid-set! %async-thunks (append thunks (filter p? (map run-async expired)))))))) 
 
 (define (get-char-timeout scr timeout)
   (timeout! scr timeout)

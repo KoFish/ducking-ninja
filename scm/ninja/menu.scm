@@ -39,8 +39,10 @@
 
 (define (ninja-ms-menu? obj) (is-a? obj <ninja-ms-menu>))
 
-(define (make-ninja-menu title) (make <ninja-menu> #:title title))
-(define (make-ninja-ms-menu title) (make <ninja-ms-menu> #:title title))
+(define (make-ninja-menu title) 
+  (make <ninja-menu> #:title (color-string title)))
+(define (make-ninja-ms-menu title) 
+  (make <ninja-ms-menu> #:title (color-string title)))
 
 (define-record-type <ninja-menu-item>
   (make-ninja-menu-item menu name short action allowed)
@@ -52,7 +54,8 @@
   (allowed is-allowed? set-allowed!))
 
 (define-method (add-item! (menu <ninja-menu>) name short action allowed)
-  (let ((item (make-ninja-menu-item menu name short (or action (cond (name (string->symbol name))
+  (let ((item (make-ninja-menu-item 
+                menu name short (or action (cond (name (string->symbol name))
                                                                      (else #f))) allowed)))
     (set! (items menu) (append (items menu) (cons item '())))))
 
@@ -64,8 +67,7 @@
         (my (1- (getmaxy scr))))
     (clear scr)
     (refresh scr)
-    (with-color scr "menu title"
-                (addstr scr (get-title menu) #:x 0 #:y 0)) 
+    (addchstr scr (get-title menu) #:x 0 #:y 0) 
     (let draw-item-loop ((items-left (items menu)) (y 1))
       (if (and (not (null? items-left)) (> (- my 2) y))
           (let ((item (car items-left))
@@ -77,8 +79,7 @@
 (define-method (draw-menu (menu <ninja-menu>) scr)
   (let ((draw-item 
           (λ (item y x)
-             (with-color scr (if (is-allowed? item) "menu option" "menu disabled")
-                         (addstr scr (format #f " [~a] ~a" (get-short item) (get-name item)) #:y y #:x x)))))
+             (addchstr scr (color-string " %c3[%c1;~a%c3]%c %c~:[1~;12~];~a" (get-short item) (is-allowed? item) (get-name item)) #:y y #:x x))))
     (draw-menu-generic menu draw-item scr)))
 
 (define-method (draw-menu (menu <ninja-ms-menu>) scr)

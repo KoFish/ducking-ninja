@@ -18,6 +18,7 @@
     (debug "Setup menu\n") 
     (add-item! menu "New Game" #\n 'new-game #t) 
     (add-item! menu "Options" #\o 'show-options #t) 
+    (add-item! menu "Color test" #\c 'color-test #t) 
     (add-item! menu "Help" #\h 'show-help #f)
     (add-blank! menu) 
     (add-item! menu "Quit" #\q 'quit #t) 
@@ -36,6 +37,9 @@
          (addstr scr "Do the option screen")
          (get-char scr)
          (draw-main-menu scr))
+        ('color-test 
+         ((@ (util colors) draw-test-screen) scr)
+         (draw-main-menu scr))
         ('show-help 
          (addstr scr "There is no help-screen")
          (get-char scr)
@@ -45,7 +49,6 @@
 
 (define (main stdscr)
   (debug "This is where we setup the game\n")
-  (setup-colors!)
   ((@ (game start-screen) draw) stdscr) 
   (draw-main-menu stdscr)
   (let ((ch (get-char stdscr)))

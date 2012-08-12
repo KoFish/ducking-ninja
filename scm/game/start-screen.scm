@@ -6,12 +6,13 @@
              (util colors)
              (util debug))
 
-(define welcome-message (color-string "Lets start this up"))
+(define welcome-message (color-string "%c4;Lets%c %bstart%b this up"))
 (define i 0)
 
 (define (draw scr)
   (let ((as (add-async 300 (λ ()
-                              (addstr scr (format #f "[ ~a ]" i) #:x 0 #:y 0)
+                              (addchstr scr (color-string "[ %i%c4;~a%c%i ]" i) #:x 0 #:y 0)
+                              (addch scr (blink #\X) #:x (1- (getmaxx scr)) #:y (1- (getmaxy scr)))
                               (set! i (1+ i))))))
     (let redraw-loop ((mx (getmaxx scr))
                       (my (getmaxy scr)))
@@ -19,7 +20,6 @@
         (λ ()
            (erase scr)
            (addchstr scr welcome-message #:x (- (floor/ mx 2) (floor/ (length welcome-message) 2)) #:y (floor/ my 2)) 
-           (move scr 1 0)
            (get-char scr)
            (drop-async as))
         (λ (key . args)
