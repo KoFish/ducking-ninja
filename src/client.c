@@ -7,7 +7,7 @@
 SCM game_start_cb(void *_screen) {
     SCM screen = (SCM)_screen;
     DBG("Start game\n");
-    SCM_CALL_(1, "game start", "main", screen);
+    SCM_CALL_(1, "game main-menu", "run", screen);
     scm_throw(scm_from_locale_symbol("game-done"), scm_cons(scm_from_locale_string("We have reached the end, my friend"), SCM_EOL));
     return SCM_BOOL_F;
 }

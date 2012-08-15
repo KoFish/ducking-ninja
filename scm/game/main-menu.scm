@@ -1,5 +1,5 @@
-(define-module (game start)
-               #:export (main))
+(define-module (game main-menu)
+               #:export (run))
 
 (use-modules (ncurses curses)
              (srfi srfi-26)
@@ -14,7 +14,7 @@
   (clear scr)
   (touchwin scr)
   (refresh scr)
-  (let ((menu (make-ninja-menu "Ducking ninja!"))) 
+  (let ((menu (make-ninja-menu "Ducking ninja!" (default-menu-color-theme)))) 
     (debug "Setup menu\n") 
     (add-item! menu "New Game" #\n 'new-game #t) 
     (add-item! menu "Options" #\o 'show-options #t) 
@@ -30,8 +30,7 @@
                (λ (key . args)
                   (redraw-loop (getmaxx scr) (getmaxy scr))))
         ('new-game 
-         (addstr scr "Start a new game!")
-         (get-char scr)
+         ((@ (game game-screen) start-game) scr)
          (draw-main-menu scr))
         ('show-options 
          (addstr scr "Do the option screen")
@@ -47,9 +46,12 @@
         ('quit (addstr scr "I'm leaving now!!"))
         (_ #f)))))
 
-(define (main stdscr)
+(define (run stdscr)
   (debug "This is where we setup the game\n")
   ((@ (game start-screen) draw) stdscr) 
+  (set-color! "bold yellow" COLOR_YELLOW COLOR_BLACK A_BOLD) 
+  (set-color! "silly color" COLOR_BLUE COLOR_YELLOW A_BOLD)
+  (set-color! "puke" COLOR_GREEN 11)
   (draw-main-menu stdscr)
   (let ((ch (get-char stdscr)))
     (if (eq? ch #\q)
