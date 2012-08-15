@@ -13,10 +13,7 @@
   (set! setup (λ ()
                  (with-throw-handler #t
                    (λ ()
-                      (setup-colors!)
-                      (add-color! "menu title" COLOR_YELLOW COLOR_BLACK A_BOLD) 
-                      (add-color! "menu option" COLOR_GREEN COLOR_BLACK) 
-                      (add-color! "menu disabled" 8 COLOR_BLACK))
+                      (setup-colors!))
                    (λ (key . args)
                       (destroy))) 
                  (raw!)
