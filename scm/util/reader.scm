@@ -70,19 +70,19 @@
 
 
 (define (get-char scr . ƒ) 
-  (let ((timeout 300)
-        (idle-value #f))
+  (let ((timeout (if (> (length ƒ) 1) (cadr ƒ) 300))
+        (ƒ (if (null? ƒ) #f (car ƒ))))
     (timeout! scr timeout)
-    (let getch-loop ((ch (get-char-timeout scr timeout)))
+    (let getch-loop ((ch (get-char-timeout scr timeout))
+                     (idle-value #f))
       (match ch
         ((? char?) 
          (tick-async)
          ch)
         (#f
-         (if (not (null? ƒ)) (set! idle-value (apply (car ƒ) idle-value)))
          (tick-async)
-         (getch-loop (get-char-timeout scr timeout)))
-        ((? (λ (x) (eq? x KEY_RESIZE)))
+         (getch-loop (get-char-timeout scr timeout) (if ƒ (ƒ idle-value))))
+        ((? (λ (k) (eq? k KEY_RESIZE)))
          (throttel-key scr ch 300)
          (throw 'window-resize))
         (_ (throw 'unknown-key (format #f "Unknown key pressed [~a]" ch)))))))
