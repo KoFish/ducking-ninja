@@ -6,6 +6,7 @@
                           make-ninja-menu-item
                           ninja-menu-item?
                           default-menu-color-theme
+                          make-ninja-menu-color-theme
                           get-title
                           multiselect?
                           get-menu
@@ -83,9 +84,11 @@
                                  ))) 
 
 (define (get-option-color theme enabled)
-  (if enabled 
-      (get-option-enabled-color theme)
-      (get-option-disabled-color theme)))
+  (if (ninja-menu-color-theme? theme)
+      (if enabled 
+          (get-option-enabled-color theme)
+          (get-option-disabled-color theme))
+      #f))
 
 (define-method (add-item! (menu <ninja-menu>) name short action allowed)
   (let ((item (make-ninja-menu-item 
@@ -123,7 +126,7 @@
                  (addchstr scr (color-string 
                                  " %c~a[%c~a;~a%c~a]%c %c~a;~a"
                                  bracket
-                                 short
+                                 (if (is-allowed? item) short disabled)
                                  (get-short item)
                                  bracket
                                  (if (is-allowed? item) enabled disabled) 
