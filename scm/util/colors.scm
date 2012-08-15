@@ -1,9 +1,10 @@
 (define-module (util colors)
                #:export (setup-colors!
                          get-color
-                         add-color!
+                         set-color!
+                         make-attr!
                          color-string
-                         with-color
+                         with-attr
                          draw-test-screen))
 
 (use-modules (ice-9 vlist)
@@ -18,18 +19,74 @@
 
 (define setup-colors! #f)
 (define get-color #f)
-(define add-color! #f)
+(define set-color! #f)
+(define make-attr! #f)
 (define fold-colors #f)
 (define get-nr-of-colors #f)
+(define get-nr-of-pairs #f)
 
-(define-syntax-rule (with-color scr name e e* ...)
-  (cond ((get-color name) 
-         => (λ (col)
-               (attr-on! scr col)
-               e
-               e* ...
-               (attr-off! scr col)))
-        (else (debug "Could not set color\n") e e* ...)))
+(let ((%color-dict vlist-null)
+      (%pairs-dict vlist-null)
+      (pair-counter 1)
+      (default-colors (list
+                        (list "default" COLOR_WHITE COLOR_BLACK)
+                        (list "inverse" COLOR_BLACK COLOR_WHITE)
+                        (list "red" COLOR_RED COLOR_BLACK))))
+
+  (define (get-pair! fg bg)
+    "Look up if there are any pairs defined with this particular
+    color combination, otherwise just initialize a pair and return
+    the new pair."
+    (cond ((vhash-assoc (cons fg bg) %pairs-dict)
+           => (λ (c) (cdr c)))
+          (else (let ((i pair-counter)) 
+                  (init-pair! i fg bg)
+                  (set! pair-counter (1+ i))
+                  (set! %pairs-dict (vhash-cons (cons fg bg) i %pairs-dict))
+                  i))))
+
+    (set! make-attr!
+      (λ (fg bg . attrs)
+         (logior (color-pair (get-pair! fg bg)) (apply logior attrs))))
+
+  (set! setup-colors! 
+    (λ ()
+       (if (eq? %pairs-dict vlist-null)
+           (begin 
+             (debug "Setup colors\n")
+             (start-color!)
+             (debug " Colors available: ~a\n" (colors))
+             (debug " Color pairs available: ~a\n" (color-pairs))
+             (debug "  - Setup default color-pairs..\n")
+             (for-each (λ (i)
+                          (get-pair! i 0)
+                          (debug "   - Color ~a ~a\n" i (color-content i))) 
+                       (iota 16 1)) 
+             (debug "  - Setup named color-pairs..\n")
+             (map (λ (c) (debug "   - ~a ~a ~a ~a\n" (car c) (cadr c) (caddr c) (cddr c)) (apply set-color! c)) default-colors)))))
+
+  (set! get-color (λ (name) 
+                     (cond ((vhash-assv (string-hash name) %color-dict)
+                            => (λ (c) (cddr c)))
+                           (else #f))))
+
+  (set! fold-colors (λ (ƒ init)
+                      (vhash-fold ƒ init %color-dict)))
+
+  (set! get-nr-of-pairs (λ () (1- pair-counter))) 
+  (set! get-nr-of-colors (λ () (vhash-fold (λ (k v r) (1+ r)) 0 %color-dict)))  
+
+  (set! set-color! (λ (name fg bg . attrs)
+                      (let ((pair (get-pair! fg bg)))
+                        (set! %color-dict (vhash-consv (string-hash name)
+                                                        (cons name (logior (color-pair pair) (apply logior attrs)))
+                                                        (vhash-delete (string-hash name) %color-dict)))))))
+
+(define-syntax-rule (with-attr scr attr e e* ...)
+  (let ((a attr))
+    (attr-on! scr a)
+    e e* ...
+    (attr-off! scr a)))
 
 (define (color-string s . rest)
   (let parse ((s (string->list (apply format #f s rest)))
@@ -56,57 +113,22 @@
                            ((char=? c #\d) (parse-with dim-on r))
                            ((char=? c #\f) (parse-with blink-on r))
                            ((char=? c #\u) (parse-with underline-on r))
-                           ((char=? c #\c) (receive (col r) (span char-numeric? r)
-                                             (let ((col (locale-string->integer (list->string col))))
-                                               (parse (if (and (not (null? r)) (char=? (car r) #\;)) (cdr r) r) modifiers (if col
-                                                                      (cons col color-stack)
-                                                                      (cdr color-stack))))))
+                           ((char=? c #\c)
+                            (receive (col r) (span char-numeric? r)
+                                     (let ((col (locale-string->integer (list->string col))))
+                                       (parse (if (and (not (null? r)) (char=? (car r) #\;))
+                                                  (cdr r) r)
+                                              modifiers 
+                                              (if col (cons col color-stack) (cdr color-stack))))))
                            (else (cons-c c r)))))
                   (else (cons-c c r))))))))
-
-(let ((%color-vlist vlist-null)
-      (pair-counter #f)
-      (default-colors (list
-                        (list "default" COLOR_WHITE COLOR_BLACK)
-                        (list "inverse" COLOR_BLACK COLOR_WHITE)
-                        (list "red" COLOR_RED COLOR_BLACK))))
-  (set! setup-colors! 
-    (λ ()
-       (if (eq? %color-vlist vlist-null)
-           (begin 
-             (debug "Setup colors\n")
-             (start-color!)
-             (debug " Colors available: ~a\n" (colors))
-             (debug " Color pairs available: ~a\n" (color-pairs))
-             (debug "  - Setup default color-pairs..\n")
-             (for-each (λ (i) (init-pair! i i 0) 
-                          (debug "   - Color ~a\n" i)) 
-                       (iota 16 1)) 
-             (debug "  - Setup named color-pairs..\n")
-             ;(set! pair-counter (color-pairs))
-             (set! pair-counter 255) 
-             (map (λ (c) (apply add-color! c)) default-colors)))))
-
-  (set! get-color (λ (name) 
-                     (cond ((vhash-assv (string-hash name) %color-vlist)
-                            => (λ (c) (cddr c)))
-                           (else #f))))
-
-  (set! fold-colors (λ (ƒ init)
-                      (vhash-fold ƒ init %color-vlist)))
-
-  (set! get-nr-of-colors (λ () (- #|(color-pairs)|# 255 pair-counter))) 
-
-  (set! add-color! (λ (name fg bg . attrs)
-                      (let ((i pair-counter))
-                        (init-pair! i fg bg)
-                        (set! pair-counter (1- pair-counter)) 
-                        (set! %color-vlist (vhash-consv (string-hash name) (cons name (logior (color-pair i) (apply logior attrs))) %color-vlist))))))
 
 (define (draw-test-screen scr)
   (let redraw-loop ((mx (getmaxx scr))
                     (my (getmaxy scr)))
+    (attr-on! scr A_BOLD)
     (addstr scr "Print color test" #:x 0 #:y 0)
+    (attr-off! scr A_BOLD)
     (debug "Nr. of defined color pairs: ~a\n" (get-nr-of-colors))
     (for-each (λ (i)
                  (addchstr scr (color-string "%c1normal %ddim%d %bbold%b %iinverse%i %fflash%f %uunderline%u%c") #:y 1 #:x 0)
