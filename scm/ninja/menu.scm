@@ -5,6 +5,7 @@
                           make-ninja-multi-menu
                           make-ninja-menu-item
                           ninja-menu-item?
+                          default-menu-color-theme
                           get-title
                           multiselect?
                           get-menu
@@ -30,6 +31,7 @@
 (define-class <ninja-menu> ()
   (title #:getter get-title #:init-keyword #:title)
   (items #:accessor items #:init-value '())
+  (colors #:getter get-color-theme #:init-keyword #:colors)
   (prompt #:getter get-prompt #:setter set-prompt! #:init-value "Choice: "))
 
 (define (ninja-menu? obj) (is-a? obj <ninja-menu>))
@@ -39,10 +41,10 @@
 
 (define (ninja-ms-menu? obj) (is-a? obj <ninja-ms-menu>))
 
-(define (make-ninja-menu title) 
-  (make <ninja-menu> #:title (color-string title)))
-(define (make-ninja-ms-menu title) 
-  (make <ninja-ms-menu> #:title (color-string title)))
+(define (make-ninja-menu title colors) 
+  (make <ninja-menu> #:title title #:colors colors))
+(define (make-ninja-ms-menu title colors) 
+  (make <ninja-ms-menu> #:title title #:colors colors))
 
 (define-record-type <ninja-menu-item>
   (make-ninja-menu-item menu name short action allowed)
@@ -52,6 +54,38 @@
   (short get-short)
   (action get-action)
   (allowed is-allowed? set-allowed!))
+
+(define-record-type <ninja-menu-color-theme>
+  (make-ninja-menu-color-theme fg bg title prompt option-enabled option-disabled short short-bracket)
+  ninja-menu-color-theme?
+  (fg get-foreground-color)
+  (bg get-background-color)
+  (title get-title-color)
+  (prompt get-prompt-color)
+  (option-enabled get-option-enabled-color)
+  (option-disabled get-option-disabled-color)
+  (short get-short-color)
+  (short-bracket get-bracket-color))
+
+(define (default-menu-color-theme)
+  (let ((white 7) 
+        (bold-white 15) 
+        (gray  8) 
+        (black 0)) 
+    (make-ninja-menu-color-theme white      #| fg       |#
+                                 black      #| bg       |#
+                                 bold-white #| title    |#
+                                 bold-white #| prompt   |#
+                                 white      #| enabled  |#
+                                 gray       #| disabled |#
+                                 bold-white #| short    |#
+                                 gray       #| brackets |#
+                                 ))) 
+
+(define (get-option-color theme enabled)
+  (if enabled 
+      (get-option-enabled-color theme)
+      (get-option-disabled-color theme)))
 
 (define-method (add-item! (menu <ninja-menu>) name short action allowed)
   (let ((item (make-ninja-menu-item 
@@ -64,10 +98,12 @@
 
 (define-method (draw-menu-generic (menu <ninja-menu>) (draw-item <procedure>) scr)
   (let ((mx (getmaxx scr))
-        (my (1- (getmaxy scr))))
+        (my (1- (getmaxy scr)))
+        (theme (or (get-color-theme menu) (default-menu-color-theme))))
     (clear scr)
     (refresh scr)
-    (addchstr scr (get-title menu) #:x 0 #:y 0) 
+    (with-attr scr (make-attr! (get-title-color theme) (get-background-color theme) A_BOLD)
+               (addstr scr (get-title menu) #:x 0 #:y 0)) 
     (let draw-item-loop ((items-left (items menu)) (y 1))
       (if (and (not (null? items-left)) (> (- my 2) y))
           (let ((item (car items-left))
@@ -77,10 +113,23 @@
           y))))
 
 (define-method (draw-menu (menu <ninja-menu>) scr)
-  (let ((draw-item 
-          (λ (item y x)
-             (addchstr scr (color-string " %c3[%c1;~a%c3]%c %c~:[1~;12~];~a" (get-short item) (is-allowed? item) (get-name item)) #:y y #:x x))))
-    (draw-menu-generic menu draw-item scr)))
+  (let ((theme (get-color-theme menu)))
+    (let ((bracket (get-bracket-color theme))
+          (short (get-short-color theme))
+          (enabled (get-option-enabled-color theme))
+          (disabled (get-option-disabled-color theme)))
+      (let ((draw-item 
+              (λ (item y x)
+                 (addchstr scr (color-string 
+                                 " %c~a[%c~a;~a%c~a]%c %c~a;~a"
+                                 bracket
+                                 short
+                                 (get-short item)
+                                 bracket
+                                 (if (is-allowed? item) enabled disabled) 
+                                 (get-name item)) 
+                           #:y y #:x x))))
+        (draw-menu-generic menu draw-item scr)))))
 
 (define-method (draw-menu (menu <ninja-ms-menu>) scr)
   (let ((draw-item 
@@ -90,11 +139,13 @@
                              (get-short item) 
                              (memq (get-short item) (selected menu))
                              (is-allowed? item)
-                             (get-name item) 'stuff) #:y y #:x x))))
+                             (get-name item)
+                             'stuff) #:y y #:x x))))
     (draw-menu-generic menu draw-item scr)))
 
 (define-method (do-menu (menu <ninja-menu>) pscr h w y x)
-  (let ((scr (derwin pscr h w y x)))
+  (let ((scr (derwin pscr h w y x))
+        (theme (get-color-theme menu)))
     (let* ((ey (draw-menu menu scr))
            (ppx 0) (ppy (1+ ey))
            (pcx (+ 0 (string-length (get-prompt menu)))) (pcy (1+ ey))
@@ -108,7 +159,8 @@
                                    (move scr pcy pcx) 
                                    (addchstr scr (normal "   ")) #| This is based on bad heuristics |#  
                                    #f #| Don't repeat this function |#)))))
-      (addstr scr (get-prompt menu) #:y ppy #:x ppx)
+      (with-attr scr (make-attr! (get-prompt-color theme) (get-background-color theme))
+                 (addstr scr (get-prompt menu) #:y ppy #:x ppx))
       (let get-char-loop ((ch (get-char scr)))
         (addstr scr (format #f "~a" ch) #:y pcy #:x pcx)
         (let ((items (filter (λ (item) (eq? ch (get-short item))) (items menu))))
